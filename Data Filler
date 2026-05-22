@@ -1,1 +1,31 @@
+import io, os, pandas as pd
+from google.colab import files
 
+# ── Upload ──
+print('📂 Upload your CSV file...')
+uploaded = files.upload()
+filename = list(uploaded.keys())[0]
+df = pd.read_csv(io.BytesIO(uploaded[filename]))
+print(f'✅ Loaded "{filename}" — {df.shape[0]} rows × {df.shape[1]} columns')
+
+# ── Define columns that should NOT be forward-filled (already unique per sub-row) ──
+MATERIAL_COLS = [
+    'Material', 'Received Quantity (in KG)', 'Rate (in Rs)', 'Amount (in Rs)',
+    'Rejected Qty (in KG)', 'Rejected QTY (in %)',
+    'Accepted Billed Qty (in KG)', 'Value of Accepted Qty (in Rs)'
+]
+fill_cols = [c for c in df.columns if c not in MATERIAL_COLS]
+
+# ── Detect gap rows before fill ──
+sub_row_indices = df[df[fill_cols].isna().all(axis=1)].index.tolist()
+print(f'📌 Gap rows detected: {len(sub_row_indices)} → indices {sub_row_indices}')
+
+# ── Apply forward fill ──
+df[fill_cols] = df[fill_cols].ffill()
+print(f'✅ Forward fill applied to {len(fill_cols)} columns')
+
+# ── Save & download ──
+output_filename = os.path.splitext(filename)[0] + '_filled.csv'
+df.to_csv(output_filename, index=False)
+print(f'💾 Saved as "{output_filename}" — downloading now...')
+files.download(output_filename)
